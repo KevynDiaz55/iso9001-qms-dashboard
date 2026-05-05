@@ -1,8 +1,11 @@
-import { withAuth } from 'next-auth/middleware';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-export const middleware = withAuth();
+export function middleware(_req: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
-  matcher: ['/((?!login|forgot-password|reset-password|api/auth|_next|favicon.ico).*)'],
+  matcher: ['/((?!_next|favicon.ico).*)'],
 };
 
