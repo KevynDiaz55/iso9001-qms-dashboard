@@ -1,0 +1,9 @@
+This file is a placeholder to indicate that the SQLite database
+`dev.db` will be created in this directory after running:
+
+- `npm install`
+- `npx prisma migrate dev`
+- `npm run prisma:seed`
+
+You can safely delete this placeholder after the database is created.
+

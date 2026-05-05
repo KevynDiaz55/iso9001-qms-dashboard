@@ -1,0 +1,221 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                String                  @id @default(cuid())
+  name              String?
+  email             String                  @unique
+  hashedPassword    String
+  role              String
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  companies         UserCompany[]
+  ownedRequirements CompanyRequirement[]    @relation("CompanyRequirementOwner")
+  createdDocuments  Document[]              @relation("DocumentCreatedBy")
+  approvedDocuments Document[]              @relation("DocumentApprovedBy")
+  meetingLogs       MeetingLog[]
+}
+
+model Company {
+  id              String                 @id @default(cuid())
+  name            String
+  industry        String?
+  location        String
+  tmacCoach       String?
+  status          String                 @default("not contacted")
+  address         String?
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  currentStage    String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  users           UserCompany[]
+  requirements    CompanyRequirement[]
+  settings        CompanySettings?
+  playbookTasks   CompanyPlaybookTask[]
+  meetingLogs     MeetingLog[]
+
+  @@index([location])
+  @@index([status])
+}
+
+model UserCompany {
+  id             String   @id @default(cuid())
+  userId         String
+  companyId      String
+  roleInCompany  String
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+}
+
+model DocumentLevel {
+  id                     Int                   @id @default(autoincrement())
+  name                   String
+  shortName              String
+  description            String?
+  order                  Int
+
+  defaultForRequirements Requirement[]         @relation("RequirementDefaultLevel")
+  companyRequirements    CompanyRequirement[]
+  documents              Document[]
+
+  @@unique([shortName])
+  @@unique([order])
+}
+
+model IsoArea {
+  id          Int           @id @default(autoincrement())
+  clauseCode  String
+  title       String
+  description String?
+
+  requirements Requirement[]
+
+  @@unique([clauseCode])
+}
+
+model Requirement {
+  id             Int                     @id @default(autoincrement())
+  isoAreaId      Int
+  title          String
+  description    String?
+  defaultLevelId Int
+
+  isoArea        IsoArea                 @relation(fields: [isoAreaId], references: [id], onDelete: Cascade)
+  defaultLevel   DocumentLevel           @relation("RequirementDefaultLevel", fields: [defaultLevelId], references: [id])
+  companyItems   CompanyRequirement[]
+
+  @@index([isoAreaId])
+}
+
+model CompanyRequirement {
+  id             Int                        @id @default(autoincrement())
+  companyId      String
+  requirementId  Int
+  levelId        Int
+  status         String
+  ownerUserId    String?
+  priority       String
+  dueDate        DateTime?
+  lastUpdatedAt  DateTime                   @default(now())
+  notes          String?
+
+  company        Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requirement    Requirement                @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  level          DocumentLevel              @relation(fields: [levelId], references: [id])
+  owner          User?                      @relation("CompanyRequirementOwner", fields: [ownerUserId], references: [id])
+  documents      Document[]
+
+  @@index([companyId])
+  @@index([requirementId])
+  @@index([status])
+  @@index([levelId])
+  @@index([ownerUserId])
+  @@index([lastUpdatedAt])
+}
+
+model Document {
+  id                    Int             @id @default(autoincrement())
+  companyRequirementId  Int
+  name                  String
+  description           String?
+  levelId               Int
+  status                String
+  cloudProvider         String
+  cloudUrl              String
+  version               String?
+  createdById           String
+  approvedById          String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  companyRequirement    CompanyRequirement @relation(fields: [companyRequirementId], references: [id], onDelete: Cascade)
+  level                 DocumentLevel      @relation(fields: [levelId], references: [id])
+  createdBy             User               @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  approvedBy            User?              @relation("DocumentApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([companyRequirementId])
+  @@index([levelId])
+  @@index([status])
+  @@index([cloudProvider])
+  @@index([createdAt])
+}
+
+model CompanySettings {
+  id                       Int           @id @default(autoincrement())
+  companyId                String        @unique
+  mainCloudProvider        String
+  mainCloudUrl             String
+  implementationStartDate  DateTime?
+  targetCertificationDate  DateTime?
+
+  company                  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model PlaybookStep {
+  id          Int                  @id @default(autoincrement())
+  order       Int
+  title       String
+  description String?
+
+  tasks       CompanyPlaybookTask[]
+
+  @@unique([order])
+}
+
+model CompanyPlaybookTask {
+  id            Int          @id @default(autoincrement())
+  companyId     String
+  stepId        Int
+  title         String
+  description   String?
+  isDone        Boolean      @default(false)
+  lastUpdatedAt DateTime     @default(now())
+
+  company       Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  step          PlaybookStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([stepId])
+}
+
+model MeetingLog {
+  id          Int      @id @default(autoincrement())
+  companyId   String
+  meetingDate DateTime
+  attendees   String?
+  whatWasDone String
+  planForNext String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  @@index([companyId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
