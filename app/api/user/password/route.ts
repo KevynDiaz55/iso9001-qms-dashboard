@@ -24,8 +24,8 @@ export async function PATCH(req: NextRequest) {
       return jsonError('New password and confirmation do not match.');
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: 'insensitive' } },
     });
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

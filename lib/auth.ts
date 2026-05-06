@@ -26,8 +26,8 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Only @miners.utep.edu and @utep.edu accounts are allowed.');
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email },
+        const user = await prisma.user.findFirst({
+          where: { email: { equals: email, mode: 'insensitive' } },
         });
 
         if (!user) {

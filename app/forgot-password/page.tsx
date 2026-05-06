@@ -27,8 +27,7 @@ export default function ForgotPasswordPage() {
       setStatus('success');
       setMessage(data.message || 'If that email is registered, you will receive a reset link.');
       if (data.devResetLink) {
-        setMessage((prev) => prev + ' Check the console or use the link shown in development.');
-        console.log('Reset link:', data.devResetLink);
+        setMessage(`${data.message || ''} Local dev link: ${data.devResetLink}`);
       }
     } catch {
       setStatus('error');

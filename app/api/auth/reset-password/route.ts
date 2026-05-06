@@ -32,10 +32,17 @@ export async function POST(req: NextRequest) {
       return jsonError('Reset token has expired.');
     }
 
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: resetRow.email, mode: 'insensitive' } },
+    });
+    if (!user) {
+      return jsonError('No user found for this reset link.');
+    }
+
     const hashed = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({
-      where: { email: resetRow.email },
-      data: { hashedPassword: hashed },
+      where: { id: user.id },
+      data: { email: user.email.toLowerCase(), hashedPassword: hashed },
     });
     await prisma.passwordResetToken.delete({ where: { id: resetRow.id } });
 

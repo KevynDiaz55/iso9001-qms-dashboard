@@ -26,8 +26,8 @@ export async function GET() {
       return NextResponse.json({ companies });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: session.user.email, mode: 'insensitive' } },
       include: {
         companies: {
           include: { company: true },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { prisma } from '../../../../lib/prisma';
+import { sendPasswordResetEmail } from '../../../../lib/email';
 
 const TOKEN_EXPIRY_HOURS = 1;
 
@@ -16,30 +17,58 @@ export async function POST(req: NextRequest) {
       return jsonError('Email is required.');
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
     });
     if (!user) {
-      return NextResponse.json({ success: true, message: 'If that email is registered, a reset link will be sent.' });
+      return NextResponse.json({
+        success: true,
+        message: 'If that email is registered, a reset link will be sent.',
+      });
     }
+
+    const normalizedEmail = user.email.toLowerCase();
+
+    await prisma.passwordResetToken.deleteMany({
+      where: { email: normalizedEmail },
+    });
 
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_HOURS * 60 * 60 * 1000);
 
     await prisma.passwordResetToken.create({
-      data: { email, token, expiresAt },
+      data: { email: normalizedEmail, token, expiresAt },
     });
 
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
-    const resetLink = `${baseUrl}/reset-password?token=${token}`;
-    console.log('[Forgot Password] Reset link for', email, ':', resetLink);
-    const mailto = `mailto:${email}?subject=TMAC%20Password%20Reset&body=Click%20or%20copy%20this%20link%20to%20reset%20your%20password%20(expires%20in%20${TOKEN_EXPIRY_HOURS}%20hour):%0A%0A${encodeURIComponent(resetLink)}`;
-    console.log('[Forgot Password] mailto link:', mailto);
+    const resetLink = `${baseUrl.replace(/\/$/, '')}/reset-password?token=${token}`;
+
+    const sent = await sendPasswordResetEmail({ to: normalizedEmail, resetUrl: resetLink });
+
+    if (!sent.ok) {
+      const isDev = process.env.NODE_ENV === 'development';
+      console.error('[Forgot Password]', sent.error);
+      if (isDev) {
+        console.log('[Forgot Password] Dev reset link:', resetLink);
+        return NextResponse.json({
+          success: true,
+          message:
+            'Email is not configured (set RESEND_API_KEY). For local dev, use the link below or see the server console.',
+          devResetLink: resetLink,
+        });
+      }
+      return NextResponse.json(
+        {
+          error:
+            'Password reset email is not configured. Add RESEND_API_KEY and EMAIL_FROM in Vercel (see lib/email.ts), then redeploy.',
+        },
+        { status: 503 },
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'If that email is registered, a reset link will be sent. For development, see server console for the reset link.',
-      devResetLink: process.env.NODE_ENV === 'development' ? resetLink : undefined,
+      message: 'If that email is registered, you will receive a reset link shortly.',
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal Server Error';
