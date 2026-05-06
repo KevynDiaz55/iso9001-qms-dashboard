@@ -38,9 +38,10 @@ export async function POST(req: NextRequest) {
     await requireRole(['admin']);
     const body = await req.json();
     const email = (body.email as string)?.trim()?.toLowerCase();
-    if (!email || !email.endsWith('@miners.utep.edu')) {
+    const allowedDomain = email?.endsWith('@miners.utep.edu') || email?.endsWith('@utep.edu');
+    if (!email || !allowedDomain) {
       return NextResponse.json(
-        { error: 'Only @miners.utep.edu emails can be added.' },
+        { error: 'Only @miners.utep.edu or @utep.edu emails can be added.' },
         { status: 400 },
       );
     }

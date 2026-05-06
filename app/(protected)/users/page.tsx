@@ -35,6 +35,28 @@ export default function UsersPage() {
       setForm({ email: '', name: '', password: '', role: 'viewer' });
     },
   });
+  const updateUser = useMutation({
+    mutationFn: async (payload: { id: string; email: string; name: string; role: string }) => {
+      const res = await fetch(apiUrl(`/api/users/${payload.id}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: payload.email, name: payload.name, role: payload.role }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || json.details || 'Failed to update user');
+      return json;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+  const deleteUser = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(apiUrl(`/api/users/${id}`), { method: 'DELETE' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || json.details || 'Failed to delete user');
+      return json;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
 
   const users = data?.users ?? [];
 
@@ -79,6 +101,7 @@ export default function UsersPage() {
               <TH>Email</TH>
               <TH>Role</TH>
               <TH>Created</TH>
+              <TH>Actions</TH>
             </tr>
           </THead>
           <TBody>
@@ -88,6 +111,37 @@ export default function UsersPage() {
                 <TD>{u.email}</TD>
                 <TD className="capitalize">{u.role}</TD>
                 <TD>{new Date(u.createdAt).toLocaleDateString()}</TD>
+                <TD>
+                  <div className="flex gap-3 text-xs">
+                    <button
+                      type="button"
+                      className="text-primary-600 hover:underline"
+                      onClick={() => {
+                        const name = window.prompt('Name', u.name ?? '') ?? u.name ?? '';
+                        const email = (window.prompt('Email', u.email) ?? u.email).trim().toLowerCase();
+                        const role = (window.prompt('Role (admin|consultant|viewer)', u.role) ?? u.role).trim().toLowerCase();
+                        if (!email) return;
+                        if (!['admin', 'consultant', 'viewer'].includes(role)) {
+                          window.alert('Role must be admin, consultant, or viewer.');
+                          return;
+                        }
+                        updateUser.mutate({ id: u.id, name, email, role });
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="text-red-600 hover:underline"
+                      onClick={() => {
+                        if (!window.confirm(`Delete user ${u.email}?`)) return;
+                        deleteUser.mutate(u.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </TD>
               </tr>
             ))}
           </TBody>
@@ -102,7 +156,7 @@ export default function UsersPage() {
           }}
           className="space-y-3 text-sm"
         >
-          <p className="text-xs text-slate-600">Only @miners.utep.edu emails can be added. The user will be able to sign in with this email and the password you set.</p>
+          <p className="text-xs text-slate-600">Only @miners.utep.edu or @utep.edu emails can be added. The user will be able to sign in with this email and the password you set.</p>
           <div>
             <label className="block text-xs font-medium text-slate-500">Email</label>
             <input
@@ -158,6 +212,17 @@ export default function UsersPage() {
           </div>
         </form>
       </Modal>
+      {(createUser.error || updateUser.error || deleteUser.error) && (
+        <p className="text-sm text-red-600">
+          {createUser.error instanceof Error
+            ? createUser.error.message
+            : updateUser.error instanceof Error
+              ? updateUser.error.message
+              : deleteUser.error instanceof Error
+                ? deleteUser.error.message
+                : null}
+        </p>
+      )}
     </div>
   );
 }
