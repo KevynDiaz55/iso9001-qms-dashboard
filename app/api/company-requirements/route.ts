@@ -54,11 +54,12 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   await requireRole(['admin', 'consultant']);
   const body = await req.json();
+  const normalizedStatus = body.status === 'completed' ? 'approved' : body.status;
 
   const updated = await prisma.companyRequirement.update({
     where: { id: body.id },
     data: {
-      status: body.status,
+      status: normalizedStatus,
       ownerUserId: body.ownerUserId,
       levelId: body.levelId,
       dueDate: body.dueDate ? new Date(body.dueDate) : null,

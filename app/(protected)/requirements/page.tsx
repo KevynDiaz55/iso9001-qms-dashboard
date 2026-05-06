@@ -41,6 +41,8 @@ function RequirementsPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['company-requirements'] });
+      queryClient.invalidateQueries({ queryKey: ['company-dashboard'] });
+      setSelected(null);
     },
   });
 
@@ -67,7 +69,7 @@ function RequirementsPageContent() {
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Requirements</h1>
           <p className="text-sm text-slate-600">
-            Track ISO 9001 requirements for this company, including owners, due dates, and status.
+            Track ISO 9001 requirements for this company and update each item to Completed.
           </p>
         </div>
       </header>
@@ -178,7 +180,51 @@ function RequirementsPageContent() {
             </div>
             <div className="space-y-1">
               <div className="text-xs font-medium text-slate-500">Notes</div>
-              <p className="text-slate-700 whitespace-pre-line">{selected.notes ?? '—'}</p>
+              <textarea
+                value={selected.notes ?? ''}
+                onChange={(e) => setSelected((prev: any) => ({ ...prev, notes: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 min-h-[90px]"
+                placeholder="Add implementation notes..."
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-xs font-medium text-slate-500">Status</div>
+              <select
+                value={selected.status}
+                onChange={(e) => setSelected((prev: any) => ({ ...prev, status: e.target.value }))}
+                className="w-full rounded-lg border border-slate-200 px-3 py-2"
+              >
+                <option value="not_started">Not started</option>
+                <option value="in_progress">In progress</option>
+                <option value="under_review">Under review</option>
+                <option value="approved">Completed</option>
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  updateRequirement.mutate({
+                    id: selected.id,
+                    status: selected.status,
+                    ownerUserId: selected.ownerUserId ?? null,
+                    levelId: selected.levelId,
+                    dueDate: selected.dueDate ?? null,
+                    notes: selected.notes ?? null,
+                  })
+                }
+                disabled={updateRequirement.isPending}
+                className="rounded-lg bg-primary-600 px-3 py-1.5 text-sm text-white hover:bg-primary-700 disabled:opacity-60"
+              >
+                {updateRequirement.isPending ? 'Saving…' : 'Save changes'}
+              </button>
             </div>
           </div>
         )}

@@ -33,15 +33,26 @@ export function computeRequirementStatusCounts(
     approved: 0,
   };
   for (const cr of requirements) {
-    base[cr.status] += 1;
+    const normalized = cr.status === 'completed' ? 'approved' : cr.status;
+    if (normalized in base) {
+      base[normalized as keyof RequirementStatusCounts] += 1;
+    }
   }
   return base;
 }
 
 export function computeOverallProgress(reqs: CompanyRequirement[]): number {
   if (reqs.length === 0) return 0;
-  const approved = reqs.filter((r) => r.status === 'approved').length;
-  return Math.round((approved / reqs.length) * 100);
+  const scoreByStatus: Record<string, number> = {
+    not_started: 0,
+    in_progress: 50,
+    under_review: 75,
+    approved: 100,
+    completed: 100,
+  };
+
+  const totalScore = reqs.reduce((sum, r) => sum + (scoreByStatus[r.status] ?? 0), 0);
+  return Math.round(totalScore / reqs.length);
 }
 
 export function computeDocumentsByLevel(levels: DocumentLevel[], docs: Document[]) {
